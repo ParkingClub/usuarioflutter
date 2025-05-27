@@ -22,8 +22,20 @@
 	<string>????</string>
 	<key>CFBundleVersion</key>
 	<string>$(FLUTTER_BUILD_NUMBER)</string>
+
+
+	<key>GMSApiKey</key>
+    <string>AIzaSyAddHsD3cuLiMrdG7CyfdktWpitgdheePQ</string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
+
+	<key>NSLocationWhenInUseUsageDescription</key>
+    <string>ParkingUsers necesita tu ubicación para centrar el mapa allí.</string>
+    <key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+    <string>ParkingUsers necesita tu ubicación para mostrar tu posición en el mapa aun con la app en segundo plano.</string>
+    <key>io.flutter.embedded_views_preview</key>
+    <true/>
+
 	<key>UILaunchStoryboardName</key>
 	<string>LaunchScreen</string>
 	<key>UIMainStoryboardFile</key>
@@ -45,5 +57,18 @@
 	<true/>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
+
+	<!-- permiso para red local (Flutter Debug) -->
+    <key>NSLocalNetworkUsageDescription</key>
+    <string>Necesitamos acceso a la red local para el servicio de depuración (hot-reload y DevTools).</string>
+
+     <!-- servicios Bonjour usados por Flutter Debug -->
+     <key>NSBonjourServices</key>
+     <array>
+            <string>_dartobservatory._tcp</string>
+            <string>_dartobservatory._udp</string>
+            <string>_dartpubserver._tcp</string>
+            <string>_dartpubserver._udp</string>
+     </array>
 </dict>
 </plist>
