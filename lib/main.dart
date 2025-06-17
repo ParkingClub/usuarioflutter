@@ -11,7 +11,8 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext ctx) {
     return MaterialApp(
-      title: 'ParkingUsers',
+      debugShowCheckedModeBanner: false,
+      title: 'ParkingClub',
       theme: ThemeData(primarySwatch: Colors.blue),
       home: const SplashScreen(),
     );

@@ -30,6 +30,7 @@ class _MapScreenState extends State<MapScreen> {
   bool _loadError = false;
 
 
+
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey();
 
   static const CameraPosition _initialPosition = CameraPosition(
@@ -383,6 +384,79 @@ class _MapScreenState extends State<MapScreen> {
     );
   }
 
+  void _irMasCercano() {
+    if (_markers.isEmpty) return;
+    _determinePosition().then((pos) {
+      var nearest = _markers.first;
+      var minDist = double.infinity;
+      for (var m in _markers) {
+        final d = Geolocator.distanceBetween(
+          pos.latitude, pos.longitude,
+          m.position.latitude, m.position.longitude,
+        );
+        if (d < minDist) {
+          minDist = d;
+          nearest = m;
+        }
+      }
+      _mapController.animateCamera(
+        CameraUpdate.newLatLngZoom(nearest.position, 16),
+      );
+      final id = int.parse(nearest.markerId.value.split('_').last);
+      _openSucursalDetail(id);
+    }).catchError((e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error obteniendo tu ubicación: \$e')),
+      );
+    });
+    Navigator.of(context).pop();
+  }
+
+  void _listarParqueaderos() async {
+    Navigator.of(context).pop();
+    try {
+      final resp = await http.get(
+        Uri.parse('https://parking-club.com/api/api/sucursales/listar_sucursalesMovil'),
+      );
+      if (resp.statusCode != 200) throw 'Status code: \${resp.statusCode}';
+      final list = json.decode(resp.body) as List<dynamic>;
+      showModalBottomSheet(
+        context: context,
+        builder: (_) => ListView.separated(
+          padding: const EdgeInsets.all(16),
+          itemCount: list.length,
+          separatorBuilder: (_, __) => const Divider(),
+          itemBuilder: (_, i) {
+            final s = list[i] as Map<String, dynamic>;
+            final fotos = (s['fotografias'] as List).cast<Map<String, dynamic>>();
+            final img = fotos.isNotEmpty ? fotos.first['fotografia'] as String : '';
+            return ListTile(
+              leading: ClipRRect(
+                borderRadius: BorderRadius.circular(8),
+                child: img.isNotEmpty
+                    ? Image.network(img, width: 56, height: 56, fit: BoxFit.cover)
+                    : Icon(Icons.local_parking, size: 56, color: const Color(0xFF920606)),
+              ),
+              title: Text(s['nombre'] as String),
+              subtitle: Text(s['ubicacion'] as String),
+              trailing: Text(
+                '\$${(s['preciotarifa'] as num).toStringAsFixed(2)}',
+                style: const TextStyle(color: Color(0xFF920606), fontWeight: FontWeight.bold),
+              ),
+              onTap: () {
+                Navigator.of(context).pop();
+                _openSucursalDetail(s['id'] as int);
+              },
+            );
+          },
+        ),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error listando sucursales: \$e')),
+      );
+    }
+  }
 
 
 
@@ -396,7 +470,7 @@ class _MapScreenState extends State<MapScreen> {
       _mapController.animateCamera(
         CameraUpdate.newLatLngZoom(
           LatLng(pos.latitude, pos.longitude),
-          14,
+          17,
         ),
       );
 
@@ -461,16 +535,12 @@ class _MapScreenState extends State<MapScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      //
-      key: _scaffoldKey,  // ← añade aquí
-
-      // ← AÑADE ESTE DRAWER
+      key: _scaffoldKey,
       drawer: SizedBox(
         width: MediaQuery.of(context).size.width * 0.6,
         child: Drawer(
           child: Column(
             children: [
-              // Header (igual que tu AppBar pero más grande)
               Container(
                 width: double.infinity,
                 color: Colors.black,
@@ -492,49 +562,42 @@ class _MapScreenState extends State<MapScreen> {
                     ),
                     const Spacer(),
                     IconButton(
-                      icon: const Icon(Icons.close, color: Colors.white, size: 28),
+                      icon: const Icon(Icons.close, color: Colors.white),
                       onPressed: () => Navigator.of(context).pop(),
                     ),
                   ],
                 ),
               ),
-              // Opciones
               ListTile(
                 leading: const Icon(Icons.place),
                 title: const Text('Ir más cercano'),
-                onTap: () { /* tu lógica */ },
+                onTap: _irMasCercano,
               ),
               const Divider(height: 1),
               ListTile(
                 leading: const Icon(Icons.list),
                 title: const Text('Listar Parqueaderos'),
-                onTap: () { /* tu lógica */ },
+                onTap: _listarParqueaderos,
               ),
               const Spacer(),
               const Divider(height: 1),
               ListTile(
-                leading: const Icon(Icons.logout, color: const Color(0xFF920606)),
-                title: const Text('Cerrar sesión', style: TextStyle(color: const Color(0xFF920606))),
-                onTap: () { /* tu lógica */ },
+                leading: const Icon(Icons.logout, color: Color(0xFF920606)),
+                title: const Text('Cerrar sesión', style: TextStyle(color: Color(0xFF920606))),
+                onTap: () {},
               ),
             ],
           ),
         ),
       ),
-      //
       appBar: AppBar(
         backgroundColor: Colors.black,
         elevation: 0,
-        // Eliminamos el leading de menú aquí
         title: Row(
           children: [
             const Text(
               'Parking',
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-              ),
+              style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold),
             ),
             const SizedBox(width: 6),
             Container(
@@ -545,11 +608,7 @@ class _MapScreenState extends State<MapScreen> {
               ),
               child: const Text(
                 'Club',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                ),
+                style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold),
               ),
             ),
           ],
@@ -557,26 +616,17 @@ class _MapScreenState extends State<MapScreen> {
       ),
       body: Stack(
         children: [
-          // 1) Tu mapa ocupa toda la pantalla
           GoogleMap(
             initialCameraPosition: _initialPosition,
-            onMapCreated: (controller) {
-              _mapController = controller;
-              // Tan pronto como el mapa esté listo, cargamos ubicación y marcadores:
-              _initLocationAndData();
-            },
+            onMapCreated: (controller) { _mapController = controller; _initLocationAndData(); },
             myLocationEnabled: true,
             zoomControlsEnabled: false,
             markers: _markers,
           ),
-
-
-          // 2) El botón de menú sobre el mapa, posicionándolo abajo-izquierda
           Positioned(
             bottom: 16,
             left: 16,
             child: GestureDetector(
-
               onTap: () => _scaffoldKey.currentState?.openDrawer(),
               child: Container(
                 width: 53,
@@ -584,17 +634,30 @@ class _MapScreenState extends State<MapScreen> {
                 padding: const EdgeInsets.all(9),
                 child: Image.asset(
                   'lib/screens/icons/icono_menu.png',
-                  color: const Color(0xE0920606), // pintamos de blanco
+                  color: const Color(0xE0920606),
                   fit: BoxFit.contain,
                 ),
               ),
             ),
           ),
+          if (_loadError)
+            Positioned(
+              top: 16,
+              right: 16,
+              child: FloatingActionButton(
+                onPressed: () {
+                  setState(() => _loadError = false);
+                  _initLocationAndData();
+                },
+                backgroundColor: const Color(0xFF920606),
+                child: const Icon(Icons.refresh, color: Colors.white),
+                tooltip: 'Recargar',
+              ),
+            ),
         ],
       ),
     );
   }
-
 }
 
 
