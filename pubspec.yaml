@@ -30,6 +30,8 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
+
+  provider: ^6.1.2
   google_maps_flutter: ^2.2.2
   geolocator: ^9.0.2
   http: ^0.13.5
@@ -69,6 +71,7 @@ flutter:
   # the material Icons class.
   uses-material-design: true
   assets:
+    - assets/map_styles/dark_map_style.json
     - lib/screens/icons/boton_flotante.png
     - lib/screens/icons/icono_menu.png
     - lib/screens/icons/mi_marker.png
