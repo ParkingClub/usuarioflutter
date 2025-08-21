@@ -13,6 +13,7 @@ import '../utils/map_styles.dart';
 import '../widgets/map_drawer.dart';
 import '../widgets/parking_detail_modal.dart';
 import '../widgets/parking_list_modal.dart';
+import '../widgets/contact_modal.dart';
 
 class MapScreen extends StatefulWidget {
   const MapScreen({super.key});
@@ -84,26 +85,42 @@ class _MapScreenState extends State<MapScreen> {
     }
   }
 
+  Future<BitmapDescriptor> _bitmapDescriptorFromAsset(
+      String assetPath, {
+        int targetWidth = 72, // cambia este valor según lo necesites
+      }) async {
+    // Carga el PNG crudo
+    final byteData = await rootBundle.load(assetPath);
+    // Crea un codec escalando al ancho deseado; mantiene la relación de aspecto
+    final codec = await ui.instantiateImageCodec(
+      byteData.buffer.asUint8List(),
+      targetWidth: targetWidth,
+    );
+    final frameInfo = await codec.getNextFrame();
+    final resizedBytes = (await frameInfo.image.toByteData(
+      format: ui.ImageByteFormat.png,
+    ))!
+        .buffer
+        .asUint8List();
+    return BitmapDescriptor.fromBytes(resizedBytes);
+  }
+
+
   Future<void> _loadMarkerIcons() async {
     try {
       final assetName = Platform.isIOS
           ? 'lib/screens/icons/mi_marker.png'
           : 'lib/screens/icons/mi_marker_android.png';
 
-      final sucursalIconData = await BitmapDescriptor.fromAssetImage(
-        const ImageConfiguration(devicePixelRatio: 1.5),
-        assetName,
-      );
-      final userIconBytes = await _createUserLocationIcon();
-      final userIconData = BitmapDescriptor.fromBytes(userIconBytes);
+      // ⬇️ Escala dinámicamente (p.ej. 72 px de ancho)
+      _sucursalIcon = await _bitmapDescriptorFromAsset(assetName, targetWidth: 160);
 
-      if (mounted) {
-        setState(() {
-          _sucursalIcon = sucursalIconData;
-          _userLocationIcon = userIconData;
-        });
-      }
+      // El icono de ubicación del usuario ya lo dibujas tú con Canvas:
+      _userLocationIcon = BitmapDescriptor.fromBytes(await _createUserLocationIcon());
+
+      if (mounted) setState(() {});
     } catch (e) {
+      // Fallback
       if (mounted) {
         setState(() {
           _sucursalIcon = BitmapDescriptor.defaultMarker;
@@ -114,6 +131,7 @@ class _MapScreenState extends State<MapScreen> {
       }
     }
   }
+
 
   Future<Uint8List> _createUserLocationIcon() async {
     final ui.PictureRecorder recorder = ui.PictureRecorder();
@@ -400,6 +418,19 @@ class _MapScreenState extends State<MapScreen> {
     }
   }
 
+  void _mostrarContacto() {
+    final localContext = context;
+    if (!mounted) return;
+    Navigator.of(localContext).pop(); // Cerrar el drawer
+
+    showModalBottomSheet(
+      context: localContext,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => const ContactModal(),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -407,6 +438,7 @@ class _MapScreenState extends State<MapScreen> {
       drawer: MapDrawer(
         onIrMasCercano: _irMasCercano,
         onListarParqueaderos: _listarParqueaderos,
+        onContactanos: _mostrarContacto,
       ),
       appBar: AppBar(
         backgroundColor: Colors.black,

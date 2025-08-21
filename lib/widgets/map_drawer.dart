@@ -5,11 +5,13 @@ import '../providers/theme_provider.dart';
 class MapDrawer extends StatelessWidget {
   final VoidCallback onIrMasCercano;
   final VoidCallback onListarParqueaderos;
+  final VoidCallback onContactanos;
 
   const MapDrawer({
     super.key,
     required this.onIrMasCercano,
     required this.onListarParqueaderos,
+    required this.onContactanos,
   });
 
   @override
@@ -75,6 +77,12 @@ class MapDrawer extends StatelessWidget {
               Provider.of<ThemeProvider>(context, listen: false).toggleTheme();
             },
             secondary: const Icon(Icons.dark_mode_outlined),
+          ),
+          const Divider(height: 1),
+          ListTile(
+            leading: const Icon(Icons.contact_support_outlined),
+            title: const Text('Contáctanos'),
+            onTap: onContactanos,
           ),
           const Spacer(),
           const Divider(height: 1),
