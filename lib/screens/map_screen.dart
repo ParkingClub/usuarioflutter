@@ -6,6 +6,7 @@ import 'package:geolocator/geolocator.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'dart:io' show Platform;
 
+// Asegúrate que las rutas de importación sean correctas para tu proyecto
 import '../models/sucursal.dart';
 import '../services/parking_service.dart';
 import '../services/location_service.dart';
@@ -87,11 +88,9 @@ class _MapScreenState extends State<MapScreen> {
 
   Future<BitmapDescriptor> _bitmapDescriptorFromAsset(
       String assetPath, {
-        int targetWidth = 72, // cambia este valor según lo necesites
+        int targetWidth = 72,
       }) async {
-    // Carga el PNG crudo
     final byteData = await rootBundle.load(assetPath);
-    // Crea un codec escalando al ancho deseado; mantiene la relación de aspecto
     final codec = await ui.instantiateImageCodec(
       byteData.buffer.asUint8List(),
       targetWidth: targetWidth,
@@ -112,15 +111,11 @@ class _MapScreenState extends State<MapScreen> {
           ? 'lib/screens/icons/mi_marker.png'
           : 'lib/screens/icons/mi_marker_android.png';
 
-      // ⬇️ Escala dinámicamente (p.ej. 72 px de ancho)
       _sucursalIcon = await _bitmapDescriptorFromAsset(assetName, targetWidth: 160);
-
-      // El icono de ubicación del usuario ya lo dibujas tú con Canvas:
       _userLocationIcon = BitmapDescriptor.fromBytes(await _createUserLocationIcon());
 
       if (mounted) setState(() {});
     } catch (e) {
-      // Fallback
       if (mounted) {
         setState(() {
           _sucursalIcon = BitmapDescriptor.defaultMarker;
@@ -168,7 +163,6 @@ class _MapScreenState extends State<MapScreen> {
   }
 
   Future<void> _initLocationAndData() async {
-    // Wait for icons to load
     int attempts = 0;
     while ((_sucursalIcon == null || _userLocationIcon == null) && attempts < 50) {
       await Future.delayed(const Duration(milliseconds: 100));
@@ -246,6 +240,7 @@ class _MapScreenState extends State<MapScreen> {
       final newMarkers = <Marker>{};
 
       for (final suc in sucursales) {
+        // Asumiendo que el modelo Sucursal tiene 'id', 'lat', 'lng'
         _sucursalCoordinates[suc.id] = LatLng(suc.lat, suc.lng);
         final marker = Marker(
           markerId: MarkerId('sucursal_${suc.id}'),
@@ -399,11 +394,35 @@ class _MapScreenState extends State<MapScreen> {
     Navigator.of(localContext).pop();
 
     try {
+      final pos = await LocationService.determinePosition();
+      if (!mounted) return;
+
       final sucursales = await ParkingService.listarSucursales();
       if (!mounted) return;
 
+      // Ordenar la lista por distancia
+      sucursales.sort((a, b) {
+        final distA = LocationService.calculateDistance(
+          pos.latitude,
+          pos.longitude,
+          // ===== AJUSTE CLAVE AQUÍ =====
+          // Usamos ['latitud'] porque la función devuelve una lista de Mapas
+          (a['latitud'] as num).toDouble(),
+          (a['longitud'] as num).toDouble(),
+        );
+        final distB = LocationService.calculateDistance(
+          pos.latitude,
+          pos.longitude,
+          // ===== AJUSTE CLAVE AQUÍ =====
+          (b['latitud'] as num).toDouble(),
+          (b['longitud'] as num).toDouble(),
+        );
+        return distA.compareTo(distB);
+      });
+
       showModalBottomSheet(
         context: localContext,
+        // Asumo que tu ParkingListModal puede manejar una List<Map<String, dynamic>>
         builder: (_) => ParkingListModal(
           sucursales: sucursales,
           onSucursalTap: (id) => _openSucursalDetail(id),
@@ -412,7 +431,7 @@ class _MapScreenState extends State<MapScreen> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(localContext).showSnackBar(
-          SnackBar(content: Text('Error listando sucursales: $e')),
+          SnackBar(content: Text('Error: $e')),
         );
       }
     }
@@ -421,7 +440,7 @@ class _MapScreenState extends State<MapScreen> {
   void _mostrarContacto() {
     final localContext = context;
     if (!mounted) return;
-    Navigator.of(localContext).pop(); // Cerrar el drawer
+    Navigator.of(localContext).pop();
 
     showModalBottomSheet(
       context: localContext,
