@@ -1,17 +1,25 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/theme_provider.dart';
+import '../screens/map_screen.dart'; // Asegúrate de importar esto para usar MarkerFilter
 
 class MapDrawer extends StatelessWidget {
   final VoidCallback onIrMasCercano;
   final VoidCallback onListarParqueaderos;
   final VoidCallback onContactanos;
 
+  // --- PARÁMETROS NUEVOS PARA EL FILTRO ---
+  final MarkerFilter currentFilter;
+  final ValueChanged<MarkerFilter> onFilterChanged;
+
   const MapDrawer({
     super.key,
     required this.onIrMasCercano,
     required this.onListarParqueaderos,
     required this.onContactanos,
+    // --- AÑADIR ESTOS PARÁMETROS REQUERIDOS ---
+    required this.currentFilter,
+    required this.onFilterChanged,
   });
 
   @override
@@ -58,6 +66,50 @@ class MapDrawer extends StatelessWidget {
               ],
             ),
           ),
+
+          // --- INICIO: SECCIÓN DE FILTRO AÑADIDA ---
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16.0, 16.0, 16.0, 8.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Mostrar en el mapa:',
+                  style: TextStyle(
+                    fontWeight: FontWeight.w600,
+                    color: Theme.of(context).textTheme.bodySmall?.color,
+                    fontSize: 14,
+                  ),
+                ),
+                const SizedBox(height: 10),
+                ToggleButtons(
+                  isSelected: [
+                    currentFilter == MarkerFilter.all,
+                    currentFilter == MarkerFilter.verified,
+                    currentFilter == MarkerFilter.unverified,
+                  ],
+                  onPressed: (index) {
+                    if (index == 0) onFilterChanged(MarkerFilter.all);
+                    if (index == 1) onFilterChanged(MarkerFilter.verified);
+                    if (index == 2) onFilterChanged(MarkerFilter.unverified);
+                  },
+                  borderRadius: BorderRadius.circular(8.0),
+                  selectedColor: Colors.white,
+                  fillColor: const Color(0xFF920606),
+                  color: const Color(0xFF920606),
+                  constraints: const BoxConstraints(minHeight: 40.0, minWidth: 80.0),
+                  children: const <Widget>[
+                    Padding(padding: EdgeInsets.symmetric(horizontal: 12), child: Text('Todos')),
+                    Padding(padding: EdgeInsets.symmetric(horizontal: 12), child: Text('Verificados')),
+                    Padding(padding: EdgeInsets.symmetric(horizontal: 12), child: Text('No Verif.')),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          // --- FIN: SECCIÓN DE FILTRO AÑADIDA ---
+
+          const Divider(height: 1),
           ListTile(
             leading: const Icon(Icons.place_outlined),
             title: const Text('Ir al más cercano'),

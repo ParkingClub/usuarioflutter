@@ -62,4 +62,25 @@ class ParkingService {
       throw 'Error listando sucursales: $e';
     }
   }
+
+  // AÑADE ESTA NUEVA FUNCIÓN
+  static Future<List<Map<String, dynamic>>> getUnverifiedParkingLocations() async {
+    final uri = Uri.parse('https://parking-club.com/api-encuestaAdmin/api/encuestas/no-aceptadas/ubicaciones');
+    try {
+      final response = await http.get(uri);
+
+      if (response.statusCode == 200) {
+        // El API devuelve una lista de objetos directamente, así que decodificamos.
+        final List<dynamic> data = json.decode(response.body);
+        // Nos aseguramos que la lista sea del tipo correcto.
+        return data.cast<Map<String, dynamic>>();
+      } else {
+        // Si el servidor responde con un error.
+        throw Exception('Falló al cargar las ubicaciones no aceptadas. Código: ${response.statusCode}');
+      }
+    } catch (e) {
+      // Para errores de conexión u otros problemas.
+      throw Exception('Error de red al obtener ubicaciones no aceptadas: $e');
+    }
+  }
 }

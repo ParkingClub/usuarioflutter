@@ -20,12 +20,22 @@ class ParkingDetailModal extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final bool esVerificado = data['es_verificado'] ?? true;
+
     final nombre = data['nombre'] as String? ?? 'Sin nombre';
     final precio = (data['preciotarifa'] as num? ?? 0).toStringAsFixed(2);
     final plazas = (data['plazasdisponibles'] ?? 0).toString();
-    final ubicacion = data['ubicacion'] as String? ?? 'Ubicación no disponible';
+
+    final ubicacion = data['ubicacion'] as String? ?? data['direccion'] as String? ?? 'Ubicación no disponible';
     final descripcion = data['descripcion'] as String? ?? '';
-    final fotos = (data['fotografias'] as List? ?? []).cast<String>();
+
+    final List<String> fotos;
+    if (esVerificado) {
+      fotos = (data['fotografias'] as List? ?? []).cast<String>();
+    } else {
+      final imagenesData = (data['imagenes'] as List? ?? []);
+      fotos = imagenesData.map((img) => img['url'] as String).toList();
+    }
 
     final apertura = _formatHora(data['horaApertura'] ?? '00:00');
     final cierre = _formatHora(data['horaCierre'] ?? '23:59');
@@ -62,7 +72,7 @@ class ParkingDetailModal extends StatelessWidget {
                       children: [
                         ListView(
                           controller: scrollController,
-                          padding: const EdgeInsets.fromLTRB(20, 20, 20, 20),
+                          padding: const EdgeInsets.fromLTRB(20, 20, 20, 80),
                           children: [
                             _buildParkingDetails(
                               context: context,
@@ -76,6 +86,7 @@ class ParkingDetailModal extends StatelessWidget {
                               cierre: cierre,
                               ubicacion: ubicacion,
                               descripcion: descripcion,
+                              esVerificado: esVerificado,
                             ),
                           ],
                         ),
@@ -109,7 +120,7 @@ class ParkingDetailModal extends StatelessWidget {
               ],
             ),
           ),
-          if (!estaAbierto)
+          if (!estaAbierto && esVerificado)
             Positioned.fill(
               child: Container(
                 decoration: BoxDecoration(
@@ -154,6 +165,7 @@ class ParkingDetailModal extends StatelessWidget {
     required String cierre,
     required String ubicacion,
     required String descripcion,
+    required bool esVerificado,
   }) {
     final textTheme = Theme.of(context).textTheme;
 
@@ -177,48 +189,53 @@ class ParkingDetailModal extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 8),
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-          decoration: BoxDecoration(
-            color: estadoColor.withOpacity(0.15),
-            borderRadius: BorderRadius.circular(20),
-          ),
-          child: Text(
-            estadoTexto,
-            style: TextStyle(
-              color: estadoColor,
-              fontWeight: FontWeight.bold,
-              fontSize: 14,
+
+        if (esVerificado)
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+            decoration: BoxDecoration(
+              color: estadoColor.withOpacity(0.15),
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: Text(
+              estadoTexto,
+              style: TextStyle(
+                color: estadoColor,
+                fontWeight: FontWeight.bold,
+                fontSize: 14,
+              ),
             ),
           ),
-        ),
         const SizedBox(height: 24),
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            _buildInfoColumn(
-              context: context,
-              icon: Icons.attach_money,
-              label: 'Tarifa/hora',
-              value: '\$$precio',
-              iconColor: textTheme.bodyLarge!.color!,
-            ),
-            _buildInfoColumn(
-              context: context,
-              icon: Icons.local_parking,
-              label: 'Disponibles',
-              value: plazas,
-              iconColor: Colors.blue.shade400,
-            ),
-            _buildInfoColumn(
-              context: context,
-              icon: Icons.access_time_rounded,
-              label: 'Horario',
-              value: '$apertura - $cierre',
-              iconColor: Colors.orange.shade400,
-            ),
-          ],
-        ),
+
+        if (esVerificado)
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              _buildInfoColumn(
+                context: context,
+                icon: Icons.attach_money,
+                label: 'Tarifa/hora',
+                value: '\$$precio',
+                iconColor: textTheme.bodyLarge!.color!,
+              ),
+              _buildInfoColumn(
+                context: context,
+                icon: Icons.local_parking,
+                label: 'Disponibles',
+                value: plazas,
+                iconColor: Colors.blue.shade400,
+              ),
+              _buildInfoColumn(
+                context: context,
+                icon: Icons.access_time_rounded,
+                label: 'Horario',
+                value: '$apertura - $cierre',
+                iconColor: Colors.orange.shade400,
+              ),
+            ],
+          ),
+
         Padding(
           padding: const EdgeInsets.symmetric(vertical: 24.0),
           child: Divider(
@@ -226,21 +243,36 @@ class ParkingDetailModal extends StatelessWidget {
             thickness: 1,
           ),
         ),
-        _buildDetailRow(
-          context: context,
-          icon: Icons.location_on_outlined,
-          label: 'Ubicación',
-          value: ubicacion,
-        ),
-        if (descripcion.isNotEmpty) ...[
-          const SizedBox(height: 16),
+
+        // --- MODIFICACIÓN: Esta fila ahora solo aparece si el parqueadero es verificado ---
+        if (esVerificado)
+          _buildDetailRow(
+            context: context,
+            icon: Icons.location_on_outlined,
+            label: 'Ubicación',
+            value: ubicacion,
+          ),
+
+        if (esVerificado) ...[
+          if (descripcion.isNotEmpty) ...[
+            const SizedBox(height: 16),
+            _buildDetailRow(
+              context: context,
+              icon: Icons.info_outline,
+              label: 'Descripción',
+              value: descripcion,
+            ),
+          ]
+        ] else ...[
+          // Mantenemos este para los no verificados
           _buildDetailRow(
             context: context,
             icon: Icons.info_outline,
-            label: 'Descripción',
-            value: descripcion,
+            label: 'Detalles',
+            value: 'Datos no proporcionados',
           ),
         ],
+
         const SizedBox(height: 32),
         ElevatedButton.icon(
           style: ElevatedButton.styleFrom(
@@ -343,7 +375,7 @@ class ParkingDetailModal extends StatelessWidget {
 
       if (openInMinutes <= closeInMinutes) {
         return nowInMinutes >= openInMinutes && nowInMinutes <= closeInMinutes;
-      } else {
+      } else { // Handles overnight hours
         return nowInMinutes >= openInMinutes || nowInMinutes <= closeInMinutes;
       }
     } catch (e) {

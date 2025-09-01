@@ -5,8 +5,8 @@ import 'package:flutter/services.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'dart:io' show Platform;
+import 'package:url_launcher/url_launcher.dart';
 
-// Asegúrate que las rutas de importación sean correctas para tu proyecto
 import '../models/sucursal.dart';
 import '../services/parking_service.dart';
 import '../services/location_service.dart';
@@ -15,6 +15,8 @@ import '../widgets/map_drawer.dart';
 import '../widgets/parking_detail_modal.dart';
 import '../widgets/parking_list_modal.dart';
 import '../widgets/contact_modal.dart';
+
+enum MarkerFilter { all, verified, unverified }
 
 class MapScreen extends StatefulWidget {
   const MapScreen({super.key});
@@ -25,9 +27,33 @@ class MapScreen extends StatefulWidget {
 
 class _MapScreenState extends State<MapScreen> {
   GoogleMapController? _mapController;
+
   final Set<Marker> _markers = {};
-  BitmapDescriptor? _sucursalIcon;
+  final Set<Marker> _verifiedMarkers = {};
+  final Set<Marker> _unverifiedMarkers = {};
+  Marker? _userMarker;
+
+  MarkerFilter _currentFilter = MarkerFilter.all;
+
+  // Iconos para parqueaderos verificados
+  BitmapDescriptor? _verifiedParkingIconSmall;
+  BitmapDescriptor? _verifiedParkingIconMedium;
+  BitmapDescriptor? _verifiedParkingIconLarge;
+  BitmapDescriptor? _verifiedParkingIconXLarge;
+
+  // Iconos para parqueaderos no verificados
+  BitmapDescriptor? _unverifiedParkingIconSmall;
+  BitmapDescriptor? _unverifiedParkingIconMedium;
+  BitmapDescriptor? _unverifiedParkingIconLarge;
+  BitmapDescriptor? _unverifiedParkingIconXLarge;
+
   BitmapDescriptor? _userLocationIcon;
+
+  double _currentZoom = 12.0;
+
+  List<Sucursal> _sucursalesData = [];
+  List<Map<String, dynamic>> _unverifiedLocationsData = [];
+
   bool _loadError = false;
   Position? _currentPosition;
   Timer? _markerAnimationTimer;
@@ -43,6 +69,7 @@ class _MapScreenState extends State<MapScreen> {
   @override
   void initState() {
     super.initState();
+    _currentZoom = _initialPosition.zoom;
     _initializeMap();
   }
 
@@ -71,9 +98,48 @@ class _MapScreenState extends State<MapScreen> {
         _isUserMarkerFaded = !_isUserMarkerFaded;
         if (_currentPosition != null) {
           _updateUserMarker();
+          _applyFilter();
         }
       },
     );
+  }
+
+  void _applyFilter() {
+    final Set<Marker> visibleMarkers = {};
+
+    switch (_currentFilter) {
+      case MarkerFilter.all:
+        visibleMarkers.addAll(_verifiedMarkers);
+        visibleMarkers.addAll(_unverifiedMarkers);
+        break;
+      case MarkerFilter.verified:
+        visibleMarkers.addAll(_verifiedMarkers);
+        break;
+      case MarkerFilter.unverified:
+        visibleMarkers.addAll(_unverifiedMarkers);
+        break;
+    }
+
+    if (_userMarker != null) {
+      visibleMarkers.add(_userMarker!);
+    }
+
+    setState(() {
+      _markers.clear();
+      _markers.addAll(visibleMarkers);
+    });
+  }
+
+  void _onFilterChanged(MarkerFilter newFilter) {
+    if (_currentFilter == newFilter) {
+      _scaffoldKey.currentState?.closeDrawer();
+      return;
+    }
+
+    _currentFilter = newFilter;
+    _applyFilter();
+
+    _scaffoldKey.currentState?.closeDrawer();
   }
 
   void _setMapStyle() {
@@ -104,21 +170,38 @@ class _MapScreenState extends State<MapScreen> {
     return BitmapDescriptor.fromBytes(resizedBytes);
   }
 
-
   Future<void> _loadMarkerIcons() async {
     try {
-      final assetName = Platform.isIOS
-          ? 'lib/screens/icons/mi_marker.png'
-          : 'lib/screens/icons/mi_marker_android.png';
+      const verifiedAssetName = 'lib/screens/icons/MarkMapV.png';
+      const unverifiedAssetName = 'lib/screens/icons/MarkMapSV.png';
 
-      _sucursalIcon = await _bitmapDescriptorFromAsset(assetName, targetWidth: 160);
+      // Cargar íconos verificados
+      _verifiedParkingIconSmall = await _bitmapDescriptorFromAsset(verifiedAssetName, targetWidth: 80);
+      _verifiedParkingIconMedium = await _bitmapDescriptorFromAsset(verifiedAssetName, targetWidth: 100);
+      _verifiedParkingIconLarge = await _bitmapDescriptorFromAsset(verifiedAssetName, targetWidth: 125);
+      _verifiedParkingIconXLarge = await _bitmapDescriptorFromAsset(verifiedAssetName, targetWidth: 150);
+
+      // Cargar íconos no verificados
+      _unverifiedParkingIconSmall = await _bitmapDescriptorFromAsset(unverifiedAssetName, targetWidth: 70);
+      _unverifiedParkingIconMedium = await _bitmapDescriptorFromAsset(unverifiedAssetName, targetWidth: 85);
+      _unverifiedParkingIconLarge = await _bitmapDescriptorFromAsset(unverifiedAssetName, targetWidth: 100);
+      _unverifiedParkingIconXLarge = await _bitmapDescriptorFromAsset(unverifiedAssetName, targetWidth: 125);
+
       _userLocationIcon = BitmapDescriptor.fromBytes(await _createUserLocationIcon());
 
       if (mounted) setState(() {});
     } catch (e) {
       if (mounted) {
         setState(() {
-          _sucursalIcon = BitmapDescriptor.defaultMarker;
+          final defaultIcon = BitmapDescriptor.defaultMarker;
+          _verifiedParkingIconSmall = defaultIcon;
+          _verifiedParkingIconMedium = defaultIcon;
+          _verifiedParkingIconLarge = defaultIcon;
+          _verifiedParkingIconXLarge = defaultIcon;
+          _unverifiedParkingIconSmall = defaultIcon;
+          _unverifiedParkingIconMedium = defaultIcon;
+          _unverifiedParkingIconLarge = defaultIcon;
+          _unverifiedParkingIconXLarge = defaultIcon;
           _userLocationIcon = BitmapDescriptor.defaultMarkerWithHue(
             BitmapDescriptor.hueBlue,
           );
@@ -126,7 +209,6 @@ class _MapScreenState extends State<MapScreen> {
       }
     }
   }
-
 
   Future<Uint8List> _createUserLocationIcon() async {
     final ui.PictureRecorder recorder = ui.PictureRecorder();
@@ -164,14 +246,79 @@ class _MapScreenState extends State<MapScreen> {
 
   Future<void> _initLocationAndData() async {
     int attempts = 0;
-    while ((_sucursalIcon == null || _userLocationIcon == null) && attempts < 50) {
+    while ((_verifiedParkingIconSmall == null || _userLocationIcon == null) && attempts < 50) {
       await Future.delayed(const Duration(milliseconds: 100));
       attempts++;
     }
 
-    await _cargarSucursales();
+    await Future.wait([
+      _cargarSucursales(),
+      _cargarUbicacionesNoAceptadas(),
+    ]);
+
+    _rebuildMarkersOnZoom();
+
     await _updateUserPosition(moveCamera: false);
     await _focusOnNearestParking();
+  }
+
+  BitmapDescriptor get _currentVerifiedParkingIcon {
+    if (_currentZoom >= 16.0) {
+      return _verifiedParkingIconXLarge ?? _verifiedParkingIconLarge!;
+    }
+    if (_currentZoom >= 14.5) {
+      return _verifiedParkingIconLarge ?? _verifiedParkingIconMedium!;
+    }
+    if (_currentZoom >= 13.0) {
+      return _verifiedParkingIconMedium ?? _verifiedParkingIconSmall!;
+    }
+    return _verifiedParkingIconSmall ?? BitmapDescriptor.defaultMarker;
+  }
+
+  BitmapDescriptor get _currentUnverifiedParkingIcon {
+    if (_currentZoom >= 16.0) {
+      return _unverifiedParkingIconXLarge ?? _unverifiedParkingIconLarge!;
+    }
+    if (_currentZoom >= 14.5) {
+      return _unverifiedParkingIconLarge ?? _unverifiedParkingIconMedium!;
+    }
+    if (_currentZoom >= 13.0) {
+      return _unverifiedParkingIconMedium ?? _unverifiedParkingIconSmall!;
+    }
+    return _unverifiedParkingIconSmall ?? BitmapDescriptor.defaultMarker;
+  }
+
+  void _rebuildMarkersOnZoom() {
+    _verifiedMarkers.clear();
+    for (final suc in _sucursalesData) {
+      _verifiedMarkers.add(Marker(
+        markerId: MarkerId('sucursal_${suc.id}'),
+        position: LatLng(suc.lat, suc.lng),
+        infoWindow: const InfoWindow(title: 'Parqueadero'),
+        icon: _currentVerifiedParkingIcon,
+        onTap: () => _openSucursalDetail(suc.id),
+        zIndex: 2,
+      ));
+    }
+
+    _unverifiedMarkers.clear();
+    for (var i = 0; i < _unverifiedLocationsData.length; i++) {
+      final loc = _unverifiedLocationsData[i];
+      final lat = (loc['latitude'] as num?)?.toDouble();
+      final lng = (loc['longitude'] as num?)?.toDouble();
+      if (lat != null && lng != null) {
+        final position = LatLng(lat, lng);
+        _unverifiedMarkers.add(Marker(
+          markerId: MarkerId('unverified_$i'),
+          position: position,
+          icon: _currentUnverifiedParkingIcon,
+          zIndex: 1,
+          anchor: const Offset(0.5, 0.5),
+          onTap: () => _openUnverifiedAsDetail(position),
+        ));
+      }
+    }
+    _applyFilter();
   }
 
   Future<void> _focusOnNearestParking() async {
@@ -191,9 +338,7 @@ class _MapScreenState extends State<MapScreen> {
     Marker? nearestMarker;
     double minDistance = double.infinity;
 
-    for (final marker in _markers) {
-      if (marker.markerId.value == 'user_location') continue;
-
+    for (final marker in _verifiedMarkers) {
       final distance = LocationService.calculateDistance(
         userLocation.latitude,
         userLocation.longitude,
@@ -236,27 +381,10 @@ class _MapScreenState extends State<MapScreen> {
 
   Future<void> _cargarSucursales() async {
     try {
-      final sucursales = await ParkingService.getSucursalesUbicaciones();
-      final newMarkers = <Marker>{};
-
-      for (final suc in sucursales) {
-        // Asumiendo que el modelo Sucursal tiene 'id', 'lat', 'lng'
+      _sucursalesData = await ParkingService.getSucursalesUbicaciones();
+      _sucursalCoordinates.clear();
+      for (final suc in _sucursalesData) {
         _sucursalCoordinates[suc.id] = LatLng(suc.lat, suc.lng);
-        final marker = Marker(
-          markerId: MarkerId('sucursal_${suc.id}'),
-          position: LatLng(suc.lat, suc.lng),
-          infoWindow: const InfoWindow(title: 'Parqueadero'),
-          icon: _sucursalIcon!,
-          onTap: () => _openSucursalDetail(suc.id),
-        );
-        newMarkers.add(marker);
-      }
-
-      if (mounted) {
-        setState(() {
-          _markers.removeWhere((m) => m.markerId.value.startsWith('sucursal_'));
-          _markers.addAll(newMarkers);
-        });
       }
     } catch (e) {
       if (mounted) {
@@ -268,10 +396,22 @@ class _MapScreenState extends State<MapScreen> {
     }
   }
 
+  Future<void> _cargarUbicacionesNoAceptadas() async {
+    try {
+      _unverifiedLocationsData = await ParkingService.getUnverifiedParkingLocations();
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('No se pudieron cargar ubicaciones extra: $e')),
+        );
+      }
+    }
+  }
+
   void _updateUserMarker() {
     if (!mounted || _currentPosition == null || _userLocationIcon == null) return;
 
-    final userMarker = Marker(
+    _userMarker = Marker(
       markerId: const MarkerId('user_location'),
       position: LatLng(_currentPosition!.latitude, _currentPosition!.longitude),
       icon: _userLocationIcon!,
@@ -279,11 +419,6 @@ class _MapScreenState extends State<MapScreen> {
       zIndex: 10,
       anchor: const Offset(0.5, 0.5),
     );
-
-    setState(() {
-      _markers.removeWhere((m) => m.markerId.value == 'user_location');
-      _markers.add(userMarker);
-    });
   }
 
   Future<void> _updateUserPosition({bool moveCamera = true}) async {
@@ -291,6 +426,7 @@ class _MapScreenState extends State<MapScreen> {
       final pos = await LocationService.determinePosition();
       _currentPosition = pos;
       _updateUserMarker();
+      _applyFilter();
 
       if (moveCamera && _mapController != null) {
         _mapController!.animateCamera(
@@ -343,6 +479,44 @@ class _MapScreenState extends State<MapScreen> {
     }
   }
 
+  void _openUnverifiedAsDetail(LatLng position) {
+    final placeholderData = {
+      'nombre': 'Parqueadero Publico',
+      'imagenes': [
+        {'url': 'assets/images/ImgDefault.png'}
+      ],
+      'servicios': [],
+      'es_verificado': false,
+    };
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      isDismissible: true,
+      enableDrag: true,
+      builder: (modalContext) => ParkingDetailModal(
+        data: placeholderData,
+        lat: position.latitude,
+        lng: position.longitude,
+        currentPosition: _currentPosition,
+      ),
+    );
+  }
+
+  Future<void> _launchMapsNavigation(LatLng position) async {
+    final url = Uri.parse('http://googleusercontent.com/maps.google.com/7{position.latitude},${position.longitude}');
+    if (await canLaunchUrl(url)) {
+      await launchUrl(url);
+    } else {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('No se pudo abrir la aplicación de mapas.')),
+        );
+      }
+    }
+  }
+
   void _irMasCercano() async {
     final localContext = context;
     if (!mounted) return;
@@ -359,7 +533,7 @@ class _MapScreenState extends State<MapScreen> {
       double minDist = double.infinity;
 
       for (var m in _markers) {
-        if (m.markerId.value == 'user_location') continue;
+        if (m.markerId.value == 'user_location' || m.markerId.value.startsWith('unverified_')) continue;
         final d = LocationService.calculateDistance(
           pos.latitude,
           pos.longitude,
@@ -400,31 +574,24 @@ class _MapScreenState extends State<MapScreen> {
       final sucursales = await ParkingService.listarSucursales();
       if (!mounted) return;
 
-      // Ordenar la lista por distancia
-      sucursales.sort((a, b) {
-        final distA = LocationService.calculateDistance(
+      final sucursalesConDistancia = sucursales.map((s) {
+        final distancia = LocationService.calculateDistance(
           pos.latitude,
           pos.longitude,
-          // ===== AJUSTE CLAVE AQUÍ =====
-          // Usamos ['latitud'] porque la función devuelve una lista de Mapas
-          (a['latitud'] as num).toDouble(),
-          (a['longitud'] as num).toDouble(),
+          (s['latitud'] as num).toDouble(),
+          (s['longitud'] as num).toDouble(),
         );
-        final distB = LocationService.calculateDistance(
-          pos.latitude,
-          pos.longitude,
-          // ===== AJUSTE CLAVE AQUÍ =====
-          (b['latitud'] as num).toDouble(),
-          (b['longitud'] as num).toDouble(),
-        );
-        return distA.compareTo(distB);
-      });
+        return {'sucursal': s, 'distancia': distancia};
+      }).toList();
+
+      sucursalesConDistancia.sort((a, b) => (a['distancia'] as double).compareTo(b['distancia'] as double));
+
+      final sucursalesOrdenadas = sucursalesConDistancia.map((s) => s['sucursal'] as Map<String, dynamic>).toList();
 
       showModalBottomSheet(
         context: localContext,
-        // Asumo que tu ParkingListModal puede manejar una List<Map<String, dynamic>>
         builder: (_) => ParkingListModal(
-          sucursales: sucursales,
+          sucursales: sucursalesOrdenadas,
           onSucursalTap: (id) => _openSucursalDetail(id),
         ),
       );
@@ -458,6 +625,8 @@ class _MapScreenState extends State<MapScreen> {
         onIrMasCercano: _irMasCercano,
         onListarParqueaderos: _listarParqueaderos,
         onContactanos: _mostrarContacto,
+        currentFilter: _currentFilter,
+        onFilterChanged: _onFilterChanged,
       ),
       appBar: AppBar(
         backgroundColor: Colors.black,
@@ -499,6 +668,12 @@ class _MapScreenState extends State<MapScreen> {
         myLocationButtonEnabled: false,
         zoomControlsEnabled: false,
         markers: _markers,
+        onCameraMove: (position) {
+          _currentZoom = position.zoom;
+        },
+        onCameraIdle: () {
+          _rebuildMarkersOnZoom();
+        },
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: () async {

@@ -16,7 +16,20 @@ class _ImageCarouselState extends State<ImageCarousel> {
   @override
   Widget build(BuildContext context) {
     if (widget.fotos.isEmpty) {
-      return const SizedBox.shrink();
+      // Muestra un contenedor con un ícono si no hay fotos, en lugar de nada.
+      return Container(
+        decoration: BoxDecoration(
+          color: Colors.grey[300],
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: Center(
+          child: Icon(
+            Icons.camera_alt_outlined,
+            color: Colors.grey[600],
+            size: 50,
+          ),
+        ),
+      );
     }
 
     return Stack(
@@ -25,19 +38,34 @@ class _ImageCarouselState extends State<ImageCarousel> {
         PageView.builder(
           itemCount: widget.fotos.length,
           onPageChanged: (i) => setState(() => _current = i),
-          itemBuilder: (_, i) => CachedNetworkImage(
-            imageUrl: widget.fotos[i],
-            fit: BoxFit.cover,
-            placeholder: (_, __) => const Center(
-              child: CircularProgressIndicator(
-                strokeWidth: 2,
-                color: Color(0xFF920606),
-              ),
-            ),
-            errorWidget: (_, __, ___) => const Center(
-              child: Icon(Icons.broken_image, size: 40),
-            ),
-          ),
+          itemBuilder: (_, i) {
+            final imageUrl = widget.fotos[i];
+
+            // --- MODIFICACIÓN: Lógica para manejar imágenes de assets o de red ---
+            if (imageUrl.startsWith('assets/')) {
+              // Si la ruta comienza con 'assets/', es una imagen local.
+              return Image.asset(
+                imageUrl,
+                fit: BoxFit.cover,
+                width: double.infinity,
+              );
+            } else {
+              // De lo contrario, es una imagen de internet.
+              return CachedNetworkImage(
+                imageUrl: imageUrl,
+                fit: BoxFit.cover,
+                placeholder: (_, __) => const Center(
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: Color(0xFF920606),
+                  ),
+                ),
+                errorWidget: (_, __, ___) => const Center(
+                  child: Icon(Icons.broken_image, size: 40),
+                ),
+              );
+            }
+          },
         ),
         if (widget.fotos.length > 1)
           Positioned(
