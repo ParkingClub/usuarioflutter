@@ -23,6 +23,8 @@ dependencies:
   url_launcher: ^6.3.2
   cupertino_icons: ^1.0.8
 
+  shared_preferences: ^2.2.3 # <-- para guardar configuraciones seleccionadas por los usuarios ej el modo oscuro
+
   # --- PAQUETES DE FIREBASE ---
   firebase_core: ^3.1.1
   firebase_auth: ^5.1.1
