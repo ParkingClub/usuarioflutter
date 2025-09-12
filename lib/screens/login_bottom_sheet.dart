@@ -3,6 +3,7 @@
 import 'package:flutter/material.dart';
 import 'package:parkingusers/screens/profile_screen.dart';
 import 'package:parkingusers/services/auth_service.dart';
+import 'package:parkingusers/services/notification_service.dart'; // <-- 1. IMPORTA EL SERVICIO
 
 class LoginBottomSheet extends StatefulWidget {
   const LoginBottomSheet({super.key});
@@ -14,6 +15,8 @@ class LoginBottomSheet extends StatefulWidget {
 class _LoginBottomSheetState extends State<LoginBottomSheet> {
   bool _isLoading = false;
   final AuthService _authService = AuthService();
+  // 2. Crea una instancia del servicio de notificaciones
+  final NotificationService _notificationService = NotificationService();
 
   Future<void> _signInWithGoogle() async {
     setState(() => _isLoading = true);
@@ -21,22 +24,31 @@ class _LoginBottomSheetState extends State<LoginBottomSheet> {
       final result = await _authService.signInWithGoogle();
 
       if (result.user != null && mounted) {
+        // --- 3. LLAMA AL SERVICIO DE NOTIFICACIONES AQUÍ ---
+        // Después de un login exitoso, pedimos permiso y guardamos el token.
+        await _notificationService.initialize();
+        // ----------------------------------------------------
+
         Navigator.of(context).pop(); // Cierra el modal de login
 
         // Si el perfil NO está completo, muestra el ProfileScreen como otro modal
         if (!result.isProfileComplete) {
           await showModalBottomSheet(
             context: context,
-            isScrollControlled: true, // Importante para que el modal sea grande
-            backgroundColor: Colors.transparent, // Fondo transparente para los bordes
+            isDismissible: false,
+            enableDrag: false,
+            isScrollControlled: true,
+            backgroundColor: Colors.transparent,
             builder: (context) => const ProfileScreen(isFirstTime: true),
           );
         }
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error al iniciar con Google: ${e.toString()}')),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error al iniciar con Google: ${e.toString()}')),
+        );
+      }
     } finally {
       if (mounted) {
         setState(() => _isLoading = false);
