@@ -22,20 +22,30 @@
 	<string>????</string>
 	<key>CFBundleVersion</key>
 	<string>$(FLUTTER_BUILD_NUMBER)</string>
+
+	<!-- Google Maps SDK key que ya tenías -->
 	<key>GMSApiKey</key>
 	<string>AIzaSyAddHsD3cuLiMrdG7CyfdktWpitgdheePQ</string>
+
+	<!-- Descripciones de permisos que ya tenías -->
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
 	<key>NSLocationWhenInUseUsageDescription</key>
-	<string>Parking Club necesita acceder a tu ubicación mientras usas la app para mostrar los parqueaderos más cercanos y ayudarte a trazar la ruta hacia ellos.</string>
+	<string>Parking Club necesita autorización para acceder a tu ubicación y mostrarte los parqueaderos más cercanos y ayudarte a trazar la ruta hacia ellos.</string>
 	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
-	<string>Parking Club utiliza tu ubicación en segundo plano para enviarte alertas personalizadas cuando estás cerca del parqueadero que seleccionaste.</string>
+	<string>Parking Club utiliza tu ubicación para enviarte notificaciones personalizadas cuando estás cerca del parqueadero que seleccionaste.</string>
+
+	<!-- Flutter flags existentes -->
 	<key>io.flutter.embedded_views_preview</key>
 	<true/>
+
+	<!-- Storyboards -->
 	<key>UILaunchStoryboardName</key>
 	<string>LaunchScreen</string>
 	<key>UIMainStoryboardFile</key>
 	<string>Main</string>
+
+	<!-- Orientaciones -->
 	<key>UISupportedInterfaceOrientations</key>
 	<array>
 		<string>UIInterfaceOrientationPortrait</string>
@@ -49,9 +59,38 @@
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
+
+	<!-- Performance flags -->
 	<key>CADisableMinimumFrameDurationOnPhone</key>
 	<true/>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
+
+	<!-- 🔐 Google Sign-In (OBLIGATORIO en iOS) -->
+	<!-- 1) URL Schemes con tu REVERSED_CLIENT_ID para que iOS regrese a la app tras el login -->
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleTypeRole</key>
+			<string>Editor</string>
+			<key>CFBundleURLName</key>
+			<string>com.parkinguser.parkingusers</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<!-- Usamos el REVERSED_CLIENT_ID del GoogleService-Info.plist -->
+				<string>com.googleusercontent.apps.994894361133-uqqnrrd7nrpo09ri15sgkha288jcrk6o</string>
+			</array>
+		</dict>
+	</array>
+
+	<!-- 2) GIDClientID con el CLIENT_ID de tu GoogleService-Info.plist -->
+	<key>GIDClientID</key>
+	<string>994894361133-uqqnrrd7nrpo09ri15sgkha288jcrk6o.apps.googleusercontent.com</string>
+
+	<!-- (Opcional) Si validas auth code en backend, añade también GIDServerClientID con tu Web client ID -->
+	<!--
+	<key>GIDServerClientID</key>
+	<string>YOUR_WEB_SERVER_CLIENT_ID.apps.googleusercontent.com</string>
+	-->
 </dict>
 </plist>

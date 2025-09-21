@@ -1,5 +1,3 @@
-// lib/screens/profile_screen.dart
-
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
@@ -26,7 +24,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
   int? _selectedYear;
   DateTime? _selectedBirthday;
 
-  // --- NUEVA VARIABLE PARA EL MENSAJE DE ERROR ---
   String? _errorMessage;
 
   String _displayName = 'Usuario';
@@ -46,7 +43,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Future<void> _loadUserData() async {
-    // ... (sin cambios en esta función)
     final user = _authService.currentUser;
     if (user == null) {
       if (mounted) setState(() => _isLoading = false);
@@ -58,7 +54,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       _displayName = data['displayName'] ?? 'Usuario';
       _photoURL = data['photoURL'];
       if (data['plateLastDigit'] != null) {
-        _selectedPlateDigit = int.tryParse(data['plateLastDigit']);
+        _selectedPlateDigit = int.tryParse('${data['plateLastDigit']}');
       }
       if (data['birthday'] != null) {
         final birthday = (data['birthday'] as Timestamp).toDate();
@@ -73,7 +69,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   void _validateAndConstructDate() {
-    // ... (sin cambios en esta función)
     if (_selectedYear != null && _selectedMonth != null) {
       final lastDayOfMonth = DateTime(_selectedYear!, _selectedMonth! + 1, 0).day;
       if (_selectedDay != null && _selectedDay! > lastDayOfMonth) {
@@ -87,9 +82,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
   }
 
-  // --- MÉTODO DE GUARDADO CON VALIDACIÓN MEJORADA ---
   Future<void> _saveChanges() async {
-    // Limpiamos cualquier error anterior al intentar guardar
     setState(() => _errorMessage = null);
 
     if (_selectedPlateDigit == null) {
@@ -106,13 +99,19 @@ class _ProfileScreenState extends State<ProfileScreen> {
         context: context,
         builder: (context) => AlertDialog(
           title: const Text('Confirmar Datos'),
-          content: const Text('¿Estás seguro de guardar estos datos?\n\nLa fecha de nacimiento no se podrá modificar después.'),
+          content: const Text(
+            '¿Estás seguro de guardar estos datos?\n\nLa fecha de nacimiento no se podrá modificar después.',
+          ),
           actions: <Widget>[
-            TextButton(child: const Text('Cancelar'), onPressed: () => Navigator.of(context).pop(false)),
+            TextButton(
+              child: const Text('Cancelar'),
+              onPressed: () => Navigator.of(context).pop(false),
+            ),
             FilledButton(
-                style: FilledButton.styleFrom(backgroundColor: brandColor),
-                child: const Text('Guardar'),
-                onPressed: () => Navigator.of(context).pop(true)),
+              style: FilledButton.styleFrom(backgroundColor: brandColor),
+              child: const Text('Guardar'),
+              onPressed: () => Navigator.of(context).pop(true),
+            ),
           ],
         ),
       );
@@ -133,7 +132,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
         if (widget.isFirstTime) {
           Navigator.of(context).pushAndRemoveUntil(
-            MaterialPageRoute(builder: (context) => const MapScreen()), (Route<dynamic> route) => false,
+            MaterialPageRoute(builder: (context) => const MapScreen()),
+                (Route<dynamic> route) => false,
           );
         } else {
           Navigator.of(context).pop();
@@ -151,11 +151,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Widget _buildPlateDigitSelector() {
-    // ... (sin cambios en este widget)
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text('Último dígito de tu placa', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500, color: Colors.black54)),
+        const Text(
+          'Último dígito de tu placa',
+          style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500, color: Colors.black54),
+        ),
         const SizedBox(height: 12),
         SizedBox(
           height: 50,
@@ -179,7 +181,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   alignment: Alignment.center,
                   child: Text(
                     digit.toString(),
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: isSelected ? Colors.white : Colors.black87),
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: isSelected ? Colors.white : Colors.black87,
+                    ),
                   ),
                 ),
               );
@@ -191,10 +197,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Widget _buildBirthdayPicker() {
-    // ... (sin cambios en este widget)
-    void showPicker({required List<Widget> items, required int initialItem, required Function(int) onSelectedItemChanged, required String title}) {
+    void showPicker({
+      required List<Widget> items,
+      required int initialItem,
+      required Function(int) onSelectedItemChanged,
+      required String title,
+    }) {
       showModalBottomSheet(
         context: context,
+        useRootNavigator: true,
+        isScrollControlled: true,
         builder: (context) => SizedBox(
           height: 250,
           child: Column(
@@ -216,10 +228,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
         ),
       );
     }
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text('Fecha de Nacimiento', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500, color: Colors.black54)),
+        const Text(
+          'Fecha de Nacimiento',
+          style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500, color: Colors.black54),
+        ),
         const SizedBox(height: 8),
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
@@ -231,39 +247,66 @@ class _ProfileScreenState extends State<ProfileScreen> {
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceAround,
             children: [
-              _buildPickerField(label: 'Año', value: _selectedYear, onTap: _isBirthdayAlreadySet ? null : () {
-                final years = List.generate(100, (i) => DateTime.now().year - i);
-                showPicker(
-                  title: 'Selecciona el Año',
-                  items: years.map((year) => Text(year.toString())).toList(),
-                  initialItem: _selectedYear != null ? years.indexOf(_selectedYear!) : 18,
-                  onSelectedItemChanged: (index) {
-                    setState(() { _selectedYear = years[index]; _validateAndConstructDate(); });
-                  },
-                );
-              }),
-              _buildPickerField(label: 'Mes', value: _selectedMonth != null ? _months[_selectedMonth! - 1] : null, onTap: _isBirthdayAlreadySet || _selectedYear == null ? null : () {
-                showPicker(
-                  title: 'Selecciona el Mes',
-                  items: _months.map((month) => Text(month)).toList(),
-                  initialItem: (_selectedMonth ?? 1) - 1,
-                  onSelectedItemChanged: (index) {
-                    setState(() { _selectedMonth = index + 1; _validateAndConstructDate(); });
-                  },
-                );
-              }),
-              _buildPickerField(label: 'Día', value: _selectedDay, onTap: _isBirthdayAlreadySet || _selectedMonth == null ? null : () {
-                final daysInMonth = DateTime(_selectedYear!, _selectedMonth! + 1, 0).day;
-                final days = List.generate(daysInMonth, (i) => i + 1);
-                showPicker(
-                  title: 'Selecciona el Día',
-                  items: days.map((day) => Text(day.toString())).toList(),
-                  initialItem: (_selectedDay ?? 1) - 1,
-                  onSelectedItemChanged: (index) {
-                    setState(() { _selectedDay = days[index]; _validateAndConstructDate(); });
-                  },
-                );
-              }),
+              _buildPickerField(
+                label: 'Año',
+                value: _selectedYear,
+                onTap: _isBirthdayAlreadySet
+                    ? null
+                    : () {
+                  final years = List.generate(100, (i) => DateTime.now().year - i);
+                  showPicker(
+                    title: 'Selecciona el Año',
+                    items: years.map((year) => Text(year.toString())).toList(),
+                    initialItem: _selectedYear != null ? years.indexOf(_selectedYear!) : 18,
+                    onSelectedItemChanged: (index) {
+                      setState(() {
+                        _selectedYear = years[index];
+                        _validateAndConstructDate();
+                      });
+                    },
+                  );
+                },
+              ),
+              _buildPickerField(
+                label: 'Mes',
+                value: _selectedMonth != null ? _months[_selectedMonth! - 1] : null,
+                onTap: (_isBirthdayAlreadySet || _selectedYear == null)
+                    ? null
+                    : () {
+                  showPicker(
+                    title: 'Selecciona el Mes',
+                    items: _months.map((month) => Text(month)).toList(),
+                    initialItem: (_selectedMonth ?? 1) - 1,
+                    onSelectedItemChanged: (index) {
+                      setState(() {
+                        _selectedMonth = index + 1;
+                        _validateAndConstructDate();
+                      });
+                    },
+                  );
+                },
+              ),
+              _buildPickerField(
+                label: 'Día',
+                value: _selectedDay,
+                onTap: (_isBirthdayAlreadySet || _selectedMonth == null)
+                    ? null
+                    : () {
+                  final daysInMonth = DateTime(_selectedYear!, _selectedMonth! + 1, 0).day;
+                  final days = List.generate(daysInMonth, (i) => i + 1);
+                  showPicker(
+                    title: 'Selecciona el Día',
+                    items: days.map((day) => Text(day.toString())).toList(),
+                    initialItem: (_selectedDay ?? 1) - 1,
+                    onSelectedItemChanged: (index) {
+                      setState(() {
+                        _selectedDay = days[index];
+                        _validateAndConstructDate();
+                      });
+                    },
+                  );
+                },
+              ),
             ],
           ),
         ),
@@ -276,8 +319,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  Widget _buildPickerField({required String label, required dynamic value, required VoidCallback? onTap}) {
-    // ... (sin cambios en este widget)
+  Widget _buildPickerField({
+    required String label,
+    required dynamic value,
+    required VoidCallback? onTap,
+  }) {
     final bool isEnabled = onTap != null;
     return InkWell(
       onTap: onTap,
@@ -286,11 +332,21 @@ class _ProfileScreenState extends State<ProfileScreen> {
         padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
         child: Column(
           children: [
-            Text(label, style: TextStyle(color: isEnabled ? Colors.grey.shade600 : Colors.grey.shade400, fontSize: 12)),
+            Text(
+              label,
+              style: TextStyle(
+                color: isEnabled ? Colors.grey.shade600 : Colors.grey.shade400,
+                fontSize: 12,
+              ),
+            ),
             const SizedBox(height: 4),
             Text(
               value?.toString() ?? '- -',
-              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: isEnabled ? brandColor : Colors.grey.shade400),
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+                color: isEnabled ? brandColor : Colors.grey.shade400,
+              ),
             ),
           ],
         ),
@@ -298,7 +354,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  // --- NUEVO WIDGET PARA MOSTRAR ERRORES ---
   Widget _buildErrorWidget() {
     return AnimatedSwitcher(
       duration: const Duration(milliseconds: 300),
@@ -331,14 +386,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // --- OBTENEMOS EL PADDING INFERIOR ---
     final double bottomPadding = MediaQuery.of(context).padding.bottom;
 
     return WillPopScope(
       onWillPop: () async => !widget.isFirstTime,
       child: Container(
         constraints: BoxConstraints(maxHeight: MediaQuery.of(context).size.height * 0.9),
-        decoration: const BoxDecoration(color: Colors.white, borderRadius: BorderRadius.vertical(top: Radius.circular(28.0))),
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(28.0)),
+        ),
         child: _isLoading
             ? const Center(child: CircularProgressIndicator(color: brandColor))
             : Column(
@@ -346,8 +403,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
           children: [
             Container(
               margin: const EdgeInsets.only(top: 12.0, bottom: 8.0),
-              width: 40, height: 5,
-              decoration: BoxDecoration(color: Colors.grey[300], borderRadius: BorderRadius.circular(10)),
+              width: 40,
+              height: 5,
+              decoration: BoxDecoration(
+                color: Colors.grey[300],
+                borderRadius: BorderRadius.circular(10),
+              ),
             ),
             Padding(
               padding: const EdgeInsets.symmetric(vertical: 8.0),
@@ -359,7 +420,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
             const Divider(height: 1, indent: 20, endIndent: 20),
             Flexible(
               child: SingleChildScrollView(
-                // --- APLICAMOS EL PADDING INFERIOR ---
                 padding: EdgeInsets.fromLTRB(24.0, 24.0, 24.0, 24.0 + bottomPadding),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -368,14 +428,20 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       child: Column(
                         children: [
                           CircleAvatar(
-                            radius: 45, backgroundColor: Colors.grey.shade200,
+                            radius: 45,
+                            backgroundColor: Colors.grey.shade200,
                             backgroundImage: _photoURL != null ? NetworkImage(_photoURL!) : null,
-                            child: _photoURL == null ? Icon(Icons.person, size: 45, color: Colors.grey.shade400) : null,
+                            child: _photoURL == null
+                                ? Icon(Icons.person, size: 45, color: Colors.grey.shade400)
+                                : null,
                           ),
                           const SizedBox(height: 12),
                           Text(_displayName, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
                           const SizedBox(height: 4),
-                          Text(_authService.currentUser?.email ?? '', style: TextStyle(fontSize: 15, color: Colors.grey.shade600)),
+                          Text(
+                            _authService.currentUser?.email ?? '',
+                            style: TextStyle(fontSize: 15, color: Colors.grey.shade600),
+                          ),
                         ],
                       ),
                     ),
@@ -385,9 +451,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         padding: const EdgeInsets.all(12),
                         margin: const EdgeInsets.only(bottom: 24.0),
                         decoration: BoxDecoration(
-                            color: brandColor.withOpacity(0.05),
-                            borderRadius: BorderRadius.circular(8),
-                            border: Border.all(color: brandColor.withOpacity(0.2))
+                          color: brandColor.withOpacity(0.05),
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: brandColor.withOpacity(0.2)),
                         ),
                         child: const Text(
                           '¡Bienvenido! Por favor, completa tus datos para continuar.',
@@ -399,19 +465,23 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     const SizedBox(height: 24),
                     _buildBirthdayPicker(),
                     const SizedBox(height: 24),
-                    // --- WIDGET DE ERROR INTEGRADO ---
                     _buildErrorWidget(),
                     const SizedBox(height: 16),
                     ElevatedButton(
                       onPressed: _isSaving ? null : _saveChanges,
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: brandColor, foregroundColor: Colors.white,
+                        backgroundColor: brandColor,
+                        foregroundColor: Colors.white,
                         padding: const EdgeInsets.symmetric(vertical: 16),
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                         textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                       ),
                       child: _isSaving
-                          ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                          ? const SizedBox(
+                        height: 20,
+                        width: 20,
+                        child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                      )
                           : Text(widget.isFirstTime ? 'GUARDAR Y CONTINUAR' : 'GUARDAR CAMBIOS'),
                     ),
                   ],
